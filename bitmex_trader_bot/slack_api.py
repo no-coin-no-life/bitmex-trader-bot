@@ -30,6 +30,7 @@ class SlackApi(object):
 
         url = "https://slack.com/api/files.upload"
         token = os.environ["BITMEX_TRADER_BOT_SLACK_TOKEN"]
+        channels = os.environ["BITMEX_TRADER_BOT_SLACK_CHANNELS"]
         files = {"file": open(file_path.format(type), "rb")}
-        param = {"token": token}
+        param = {"token": token, "channels": channels}
         requests.post(url=url, params=param, files=files)

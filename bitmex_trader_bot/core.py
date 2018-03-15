@@ -34,6 +34,9 @@ class Core(object):
         # 前回損益
         self.before_profit = 0.0
 
+        # 損益
+        self.profits = []
+
         # トータル損益
         # TODO: リスト管理に変更する
         self.total_profit = 0.0
@@ -178,7 +181,9 @@ class Core(object):
 
         close = self.current_ticker["close"]
         checker = ForecastChecker(close, forecast_data)
-        return checker.check_position()
+        result = checker.check_position()
+        del checker
+        return result
 
     def order(self, position, amount, price=0):
         """
@@ -242,22 +247,10 @@ class Core(object):
         self.before_tax = 0.0
         if type == "buy":
             self.before_profit = close_xbt - pref_xbt
-            message = "{0} {1:.8f} - {2:.8f}: {3:.8f}".format(
-                type,
-                close_xbt,
-                pref_xbt,
-                self.before_profit
-            )
         else:
             self.before_profit = pref_xbt - close_xbt
-            message = "{0} {1:.8f} - {2:.8f}: {3:.8f}".format(
-                type,
-                pref_xbt,
-                close_xbt,
-                self.before_profit
-            )
 
-        SlackApi().notify(message)
+        self.profits.append(self.before_profit)
         self.total_profit += self.before_profit
         self.total_tax += self.before_tax
 

@@ -10,6 +10,8 @@ import logging
 
 import time
 
+import gc
+
 from dotenv import load_dotenv, find_dotenv
 
 from bitmex_trader_bot.core import Core
@@ -79,7 +81,7 @@ def main(config):
                     message = "ポジションを取らない！"
                     slack.notify(message)
             else:
-                message = "現在利益: {0:.8f} XBT".format(bot.current_profit)
+                message = "現在損益: {0:.8f} XBT".format(bot.current_profit)
                 slack.notify(message)
 
                 result = bot.release_check(recommend_pos)
@@ -88,13 +90,24 @@ def main(config):
                     logger.info("order: {0}".format(order))
                     message = """
                     ポジションを解消！
-                    利益: {0:.8f} XBT
+                    損益: {0:.8f} XBT
                     手数料: {1:.8f} XBT
-                    """.format(bot.total_profit, bot.total_tax)
+                    トレード回数: {2} 回
+                    最大利益: {3:.8f} XBT
+                    最大損失: {4:.8f} XBT
+                    """.format(
+                        bot.total_profit,
+                        bot.total_tax,
+                        len(bot.profits),
+                        max(bot.profits),
+                        min(bot.profits))
                     slack.notify(message)
                 else:
                     message = "ポジションを維持！"
                     slack.notify(message)
+
+            del forecast_data
+            gc.collect()
 
         except Exception as e:
             logger.exception(e)

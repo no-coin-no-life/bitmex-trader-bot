@@ -17,7 +17,7 @@ class ForecastChecker(object):
         """
 
         positions = []
-        for type in ["open", "high", "low", "close"]:
+        for type in ["high", "low"]:
             pos = self.__forecast_data[type].recommendation_position()
             positions.append(pos)
 

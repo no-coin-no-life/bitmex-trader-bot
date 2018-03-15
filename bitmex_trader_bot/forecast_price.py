@@ -26,8 +26,8 @@ class ForecastPrice(object):
         """
 
         self.__data_url = data_url
-        self.__get_data_count = 60 * 10
-        self.__periods = 40
+        self.__get_data_count = 60 * 3
+        self.__periods = 10
 
     def forecast(self):
         """
@@ -37,19 +37,10 @@ class ForecastPrice(object):
         :return: 時系列解析結果
         """
 
-        o_base_date_list, o_date_list, o_price_list = self.__get_price_data(
-            type="open")
         h_base_date_list, h_date_list, h_price_list = self.__get_price_data(
             type="high")
         l_base_date_list, l_date_list, l_price_list = self.__get_price_data(
             type="low")
-        c_base_date_list, c_date_list, c_price_list = self.__get_price_data(
-            type="close")
-        open_forecast = self.__forecast(
-            type="open",
-            base_date_list=o_base_date_list,
-            date_list=o_date_list,
-            price_list=o_price_list)
         high_forecast = self.__forecast(
             type="high",
             base_date_list=h_base_date_list,
@@ -60,16 +51,17 @@ class ForecastPrice(object):
             base_date_list=l_base_date_list,
             date_list=l_date_list,
             price_list=l_price_list)
-        close_forecast = self.__forecast(
-            type="close",
-            base_date_list=c_base_date_list,
-            date_list=c_date_list,
-            price_list=c_price_list)
+
+        del h_base_date_list
+        del h_date_list
+        del h_price_list
+        del l_base_date_list
+        del l_date_list
+        del l_price_list
+
         return {
-            "open": open_forecast,
             "high": high_forecast,
             "low": low_forecast,
-            "close": close_forecast,
         }
 
     def __get_price_data(self, type="close"):
@@ -108,13 +100,11 @@ class ForecastPrice(object):
         time_stamp = [dt.datetime.fromtimestamp(time_stamp[i]) for i in range(
             len(time_stamp))]
         date_list = []
-        base_date = dt.datetime.now() - dt.timedelta(days=len(time_stamp))
+        base_date = dt.datetime.now() - dt.timedelta(hours=len(time_stamp))
         tmp_date = base_date
         for item in time_stamp:
-            tmp_date += dt.timedelta(days=1)
-            tmp_datetime = dt.datetime.strptime(
-                tmp_date.strftime("%Y-%m-%d ")
-                + item.strftime("%H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+            tmp_date += dt.timedelta(hours=1)
+            tmp_datetime = tmp_date
             date_list.append(tmp_datetime)
 
         # 価格リスト作成
@@ -147,10 +137,6 @@ class ForecastPrice(object):
         :return: 解析結果
         """
 
-        # データ作成
-        base_data = pd.DataFrame([date_list, price_list]).T
-        base_data.columns = ["ds", "y"]
-
         # 解析には直近データを検証用に利用するため別で用意する
         periods = int(self.__periods)
 
@@ -162,7 +148,7 @@ class ForecastPrice(object):
         model.fit(fit_data)
 
         # 解析する
-        future_data = model.make_future_dataframe(periods=periods)
+        future_data = model.make_future_dataframe(periods=periods, freq="H")
         forecast_data = model.predict(future_data)
 
         # 解析データから日付と値を取得する
@@ -174,29 +160,34 @@ class ForecastPrice(object):
             len(forecast_yhats))]
 
         # 時系列解析用に変更していた日時を元に戻す
-        forecast_dates = []
         index = 0
         last_timestamp = base_date_list[-1]
-        future_dates = []
         future_values = []
         for item in forecast_dss:
-            if len(base_date_list) > index:
-                tmp_date = base_date_list[index]
-            else:
+            if len(base_date_list) <= index:
                 last_timestamp += dt.timedelta(minutes=1)
                 tmp_date = last_timestamp
                 base_date_list.append(tmp_date)
                 price_list.append(price_list[-1])
-                future_dates.append(tmp_date)
                 future_values.append(forecast_yhats[index])
-            forecast_dates.append(tmp_date)
             index += 1
+
+        # 移動平均を求める
+        ma25 = pd.Series(price_list).rolling(window=25).mean()
+
+        # ボリンジャーバンドを求める
+        siguma = pd.Series(price_list).rolling(window=25).std(ddof=0)
+        up_borin2 = ma25 + siguma * 2
+        low_borin2 = ma25 - siguma * 2
 
         # グラフを表示する
         fig = plt.figure()
         ax = fig.add_subplot(111)
         ax.plot(base_date_list, price_list)
         ax.plot(base_date_list, forecast_yhats, color="red")
+        ax.plot(base_date_list, ma25, color="blue")
+        ax.plot(base_date_list, up_borin2, linewidth=1, color="green")
+        ax.plot(base_date_list, low_borin2, linewidth=1, color="green")
         ax.set_title("images/{0} XBT Price".format(type))
         ax.set_xlabel("min")
         ax.set_ylabel("{0}XBT Price[$]".format(type))
@@ -205,6 +196,17 @@ class ForecastPrice(object):
 
         model.plot(forecast_data)
         plt.savefig("images/{0}_forecast_data.jpg".format(type))
+        plt.close()
+
+        del fit_data
+        del future_data
+        del forecast_data
+        del forecast_dss
+        del forecast_yhats
+        del date_list
+        del price_list
+        del fig
+        del model
 
         # slackに画像送信する
         slack = SlackApi()
