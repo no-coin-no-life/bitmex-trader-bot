@@ -12,22 +12,38 @@ import matplotlib.pyplot as plt
 
 from fbprophet import Prophet
 
-from .slack_api import SlackApi
+from .analyst import Analyst
 
 
-class ForecastPrice(object):
+class ProphetAnalyst(Analyst):
     """
     指定の取引所で時系列解析で価格予測するクラス
     """
 
-    def __init__(self, data_url):
-        """
-        :param str data_url: 過去データを取得するURL
-        """
-
-        self.__data_url = data_url
+    def __init__(self, logger, config):
+        super().__init__(logger, config)
+        self.__data_url = config.get("cryptowat", "url")
         self.__get_data_count = 60 * 3
         self.__periods = 10
+
+        self.current_price = 0.0
+        self.results = None
+
+    @property
+    def forecast_position(self):
+        """
+        予測ポジション
+
+        :rtype: str
+        :return: 予測ポジション
+        """
+
+        result = self.check_position()
+        message = "forecast_position: {0}".format(result)
+        self._slack.notify(message)
+        self._logger.info(message)
+
+        return result
 
     def forecast(self):
         """
@@ -59,10 +75,45 @@ class ForecastPrice(object):
         del l_date_list
         del l_price_list
 
-        return {
+        self.results = {
             "high": high_forecast,
             "low": low_forecast,
         }
+
+        message = "analyst.high: {0}".format(
+            self.results["high"].high_price)
+        self._slack.notify(message)
+        self._logger.info(message)
+        message = "analyst.low: {0}".format(
+            self.results["low"].low_price)
+        self._slack.notify(message)
+        self._logger.info(message)
+
+        return self.results
+
+    def check_position(self):
+        """
+        high,lowそれぞれの予測ポジションから
+        総合的にポジション取得可能か判断する
+
+        :rtype: str
+        :return: 予測ポジション
+        """
+
+        positions = []
+        for type in ["high", "low"]:
+            pos = self.results[type].recommendation_position()
+            positions.append(pos)
+
+        last_pos = None
+        for pos in positions:
+            if last_pos is None:
+                last_pos = pos
+            if last_pos != pos:
+                last_pos = None
+                break
+
+        return pos
 
     def __get_price_data(self, type="close"):
         """
@@ -209,15 +260,14 @@ class ForecastPrice(object):
         del model
 
         # slackに画像送信する
-        slack = SlackApi()
-        if type == "close":
-            slack.upload_image("images/{0}_price_data.jpg".format(type))
-            slack.upload_image("images/{0}_forecast_data.jpg".format(type))
+        if type == "high":
+            self._slack.upload_image("images/{0}_price_data.jpg".format(type))
+            self._slack.upload_image("images/{0}_forecast_data.jpg".format(type))
 
-        return ForecastData(base_date_list, future_values)
+        return AnalysisData(base_date_list, future_values)
 
 
-class ForecastData(object):
+class AnalysisData(object):
     """
     時系列解析の結果を管理するクラス
     """
@@ -291,11 +341,6 @@ class ForecastData(object):
             pos = "short"
             if open < high:
                 pos = None
-        slack = SlackApi()
-        message = "{0} (o:{1} h:{2} l:{3} c:{4})".format(
-            str(pos), open, high, low, close
-        )
-        slack.notify(message)
         return pos
 
     def __get_data_list_with_price(self, price):

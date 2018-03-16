@@ -1,3 +1,5 @@
+import importlib
+
 import sys
 
 import os
@@ -8,15 +10,7 @@ from configparser import ConfigParser
 
 import logging
 
-import time
-
-import gc
-
 from dotenv import load_dotenv, find_dotenv
-
-from bitmex_trader_bot.core import Core
-
-from bitmex_trader_bot.slack_api import SlackApi
 
 
 def main(config):
@@ -32,87 +26,14 @@ def main(config):
     # オプション取得
     logger.info(options.debug)
 
-    # ライブラリ呼び出し
-    bot = Core(config)
-    slack = SlackApi()
-
     # 環境変数設定
     load_dotenv(find_dotenv())
 
-    while True:
-        try:
-            # 取引所情報を取得する
-            # bitmex = bot.get_exchange()
-            current_ticker = bot.get_ticker()
-            close_price = current_ticker["last"]
-
-            # 予測情報を取得する
-            forecast_data = bot.get_forecast()
-            recommend_pos = bot.forecast_position(forecast_data)
-
-            message = "現在価格: {0}".format(close_price)
-            slack.notify(message)
-            logger.info(message)
-            message = "forecast.high: {0}".format(
-                forecast_data["high"].high_price)
-            slack.notify(message)
-            logger.info(message)
-            message = "forecast.low: {0}".format(
-                forecast_data["low"].low_price)
-            slack.notify(message)
-            logger.info(message)
-            message = "recommend_pos: {0}".format(recommend_pos)
-            slack.notify(message)
-            logger.info(message)
-
-            # ポジションを持っているかチェックする
-            positions = bot.get_positions()
-            logger.info("positions: {0}".format(positions))
-            if len(positions) <= 0:
-                result = bot.do_order_check(recommend_pos, forecast_data)
-                if result:
-                    message = "{0}から{1}で注文する！".format(
-                        close_price, recommend_pos)
-                    slack.notify(message)
-                    logger.info(message)
-                    order = bot.order(recommend_pos, 1000)
-                    logger.info("order: {0}".format(order))
-                else:
-                    message = "ポジションを取らない！"
-                    slack.notify(message)
-            else:
-                message = "現在損益: {0:.8f} XBT".format(bot.current_profit)
-                slack.notify(message)
-
-                result = bot.release_check(recommend_pos)
-                if result:
-                    order = bot.close_order(positions[-1])
-                    logger.info("order: {0}".format(order))
-                    message = """
-                    ポジションを解消！
-                    損益: {0:.8f} XBT
-                    手数料: {1:.8f} XBT
-                    トレード回数: {2} 回
-                    最大利益: {3:.8f} XBT
-                    最大損失: {4:.8f} XBT
-                    """.format(
-                        bot.total_profit,
-                        bot.total_tax,
-                        len(bot.profits),
-                        max(bot.profits),
-                        min(bot.profits))
-                    slack.notify(message)
-                else:
-                    message = "ポジションを維持！"
-                    slack.notify(message)
-
-            del forecast_data
-            gc.collect()
-
-        except Exception as e:
-            logger.exception(e)
-
-        time.sleep(sleep_second)
+    trade_name = config.get("trade", "name")
+    module = importlib.import_module(trade_name)
+    trade = module.ProphetTrade(config=config, logger=logger,
+                                sleep_second=sleep_second)
+    trade.start()
 
 
 if __name__ == "__main__":

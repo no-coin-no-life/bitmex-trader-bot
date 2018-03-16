@@ -1,9 +1,5 @@
 import ccxt
 
-from .forecast_price import ForecastPrice
-
-from .forecast_checker import ForecastChecker
-
 from .slack_api import SlackApi
 
 
@@ -12,16 +8,21 @@ class Core(object):
     取引所へアクセスしてトレードするBotクラス
     """
 
-    def __init__(self, config):
+    def __init__(self, config, logger):
         """
         :param object config: 設定情報
         """
 
-        self.__data_url = config.get("cryptowat", "url")
+        self.__logger = logger
+        self.__config = config
+        self.__slack = SlackApi()
         self.exchange = None
         self.symbol = "BTC/USD"
         self.current_ticker = None
         self.positions = []
+
+        # 価格予想モジュール
+        self.analyst = None
 
         # 損切りライン(USD)
         # TODO: XBTに変更する
@@ -105,30 +106,33 @@ class Core(object):
         # TODO: アクティブな注文を取得する
         return self.positions
 
-    def do_order_check(self, recommend_pos, forecast_data):
+    def do_order_check(self):
         """
         注文するか判断する
         注文する場合、Trueを返す
 
-        :param str recommend_pos: 予測したポジション
-        :param object amount: 予測価格情報
         :rtype: bool
         :return: 判断結果
         """
 
-        price = self.current_ticker["close"]
-        forecast_high = forecast_data["high"].high_price
-        forecast_low = forecast_data["high"].low_price
-        if recommend_pos is not None:
-            if recommend_pos == "long":
-                if price < forecast_low:
-                    return True
-            if recommend_pos == "short":
-                if price > forecast_high:
-                    return True
-        return False
+        if self.analyst.results is None:
+            self.forecast()
 
-    def release_check(self, recommend_pos):
+        price = self.current_ticker["close"]
+        forecast_results = self.analyst.results
+        trend = self.analyst.forecast_position
+        forecast_high = forecast_results["high"].high_price
+        forecast_low = forecast_results["high"].low_price
+        if trend is not None:
+            if trend == "long":
+                if price < forecast_low:
+                    return True, trend
+            if trend == "short":
+                if price > forecast_high:
+                    return True, trend
+        return False, trend
+
+    def release_check(self):
         """
         利確・損切りするか判断する
         利確・損切りする場合、Trueを返す
@@ -141,12 +145,17 @@ class Core(object):
         if len(self.positions) == 0:
             return False
 
+        if self.analyst.results is None:
+            self.forecast()
+
         close = self.current_ticker["close"]
         order = self.positions[0]
         type = order["type"]
         order_price = order["price"]
         order_pos = "long" if type == "buy" else "sell"
-        if order_pos != recommend_pos:
+        trend = self.analyst.forecast_position
+
+        if order_pos != trend:
             return True
         if order_pos == "long":
             if order_price > close + self.Loss_cutting_line:
@@ -158,32 +167,6 @@ class Core(object):
             return True
 
         return False
-
-    def get_forecast(self):
-        """
-        価格推移を予想する
-
-        :rtype: object
-        :return: 予想結果
-        """
-
-        forecast_price = ForecastPrice(self.__data_url)
-        return forecast_price.forecast()
-
-    def forecast_position(self, forecast_data):
-        """
-        時系列解析結果のポジションを返す
-
-        :param str forecast_data: 予測したポジション
-        :rtype: srt
-        :return: 予測ポジション
-        """
-
-        close = self.current_ticker["close"]
-        checker = ForecastChecker(close, forecast_data)
-        result = checker.check_position()
-        del checker
-        return result
 
     def order(self, position, amount, price=0):
         """

@@ -27,6 +27,7 @@ https://github.com/no-coin-no-life/bitmex-trader-bot/issues
 ```
 git clone git@github.com:no-coin-no-life/bitmex-trader-bot.git
 pip install -r requirements.txt
+pip install -e .
 cp .env.sample .env
 vi .env
 python bin/main.py 360
@@ -85,3 +86,6 @@ https://facebook.github.io/prophet/docs/installation.html
 
 - https://qiita.com/ykhirao/items/0d6b9f4a0cc626884dbb
 
+#### Python
+
+- https://qiita.com/progrommer/items/abd2276f314792c359da
