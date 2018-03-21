@@ -3,7 +3,7 @@ from .core import Core
 from .slack_api import SlackApi
 
 
-class Trade(object):
+class Trader(object):
     def __init__(self, config, logger):
         self._logger = logger
         self._config = config

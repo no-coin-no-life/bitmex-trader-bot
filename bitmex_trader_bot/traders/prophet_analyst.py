@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from fbprophet import Prophet
 
-from .analyst import Analyst
+from ..analyst import Analyst
 
 
 class ProphetAnalyst(Analyst):

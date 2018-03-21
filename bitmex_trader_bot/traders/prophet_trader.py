@@ -1,11 +1,11 @@
 import time
 
-from .trade import Trade
+from ..trader import Trader
 
 from .prophet_analyst import ProphetAnalyst
 
 
-class ProphetTrade(Trade):
+class CustomTrader(Trader):
     def __init__(self, config=None, logger=None, sleep_second=60):
         super().__init__(config, logger)
         self.__sleep_second = sleep_second

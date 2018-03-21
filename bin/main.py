@@ -29,9 +29,9 @@ def main(config):
     # 環境変数設定
     load_dotenv(find_dotenv())
 
-    trade_name = config.get("trade", "name")
+    trade_name = config.get("trader", "name")
     module = importlib.import_module(trade_name)
-    trade = module.ProphetTrade(config=config, logger=logger,
+    trade = module.CustomTrader(config=config, logger=logger,
                                 sleep_second=sleep_second)
     trade.start()
 
