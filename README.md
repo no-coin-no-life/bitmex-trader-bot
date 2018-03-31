@@ -89,3 +89,7 @@ https://facebook.github.io/prophet/docs/installation.html
 #### Python
 
 - https://qiita.com/progrommer/items/abd2276f314792c359da
+
+#### selenium
+
+- https://qiita.com/chachamalu/items/7b6f2a95ea45667e1029

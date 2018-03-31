@@ -1,0 +1,5 @@
+{
+    "python.linting.flake8Enabled": false,
+    "python.linting.pylintEnabled": true,
+    "python.pythonPath": "/Users/koka/.anyenv/envs/pyenv/versions/3.5.1/bin/python"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "bitmex-trader-bot",
+  "version": "1.0.0",
+  "description": "BitMEXで動作する自動トレードBotを作ってるよ！ まだ実際に注文はできないし、利益はでません。",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/no-coin-no-life/bitmex-trader-bot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/no-coin-no-life/bitmex-trader-bot/issues"
+  },
+  "homepage": "https://github.com/no-coin-no-life/bitmex-trader-bot#readme",
+  "dependencies": {
+    "phantomjs": "^2.1.7"
+  }
+}

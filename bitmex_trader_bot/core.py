@@ -56,8 +56,9 @@ class Core(object):
         """
 
         result = 0.0
-        price = self.current_ticker["close"]
         if len(self.positions) > 0:
+            self.get_ticker()
+            price = self.current_ticker["close"]
             order = self.positions[0]
             amount = order["amount"]
             pref_price = order["price"]
@@ -106,6 +107,7 @@ class Core(object):
         # TODO: アクティブな注文を取得する
         return self.positions
 
+    # TODO: Analystクラスで判断するようにする
     def do_order_check(self):
         """
         注文するか判断する
@@ -116,7 +118,7 @@ class Core(object):
         """
 
         if self.analyst.results is None:
-            self.forecast()
+            self.analyst.forecast()
 
         price = self.current_ticker["close"]
         forecast_results = self.analyst.results
@@ -132,6 +134,7 @@ class Core(object):
                     return True, trend
         return False, trend
 
+    # TODO: Analystクラスで判断するようにする
     def release_check(self):
         """
         利確・損切りするか判断する
@@ -146,7 +149,7 @@ class Core(object):
             return False
 
         if self.analyst.results is None:
-            self.forecast()
+            self.analyst.forecast()
 
         close = self.current_ticker["close"]
         order = self.positions[0]
@@ -179,6 +182,7 @@ class Core(object):
         """
 
         if price == 0:
+            self.get_ticker()
             price = self.current_ticker["close"]
         if position == "long":
             type = "buy"
@@ -208,6 +212,7 @@ class Core(object):
         :return: 注文情報
         """
 
+        self.get_ticker()
         price = self.current_ticker["close"]
         amount = pref_order["amount"]
         type = "buy"

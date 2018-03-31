@@ -103,3 +103,5 @@ ENV/
 
 # BitMEXTraderBot
 *.jpg
+*.png
+node_modules
